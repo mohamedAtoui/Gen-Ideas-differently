@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CrossGen — Cross-Domain Idea Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen">
+    <div class="max-w-4xl mx-auto px-6 py-16">
+        <!-- Header -->
+        <header class="text-center mb-16">
+            <h1 class="text-5xl font-bold mb-4">
+                <span class="gradient-text">CrossGen</span>
+            </h1>
+            <p class="text-xl text-gray-400 max-w-2xl mx-auto">
+                Cross-domain analogical reasoning engine. Finds solutions to your problems from unexpected fields.
+            </p>
+        </header>
+
+        <!-- How it works -->
+        <section class="mb-16">
+            <h2 class="text-2xl font-semibold mb-6 text-center">How It Works</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-gray-900 rounded-lg p-6 border border-gray-800">
+                    <div class="text-3xl mb-3 text-center">1-2</div>
+                    <h3 class="font-semibold mb-2 text-center">Decompose & Abstract</h3>
+                    <p class="text-sm text-gray-400">
+                        Your problem is broken into functions, constraints, and contradictions.
+                        Four parallel lenses (SAPPhIRE, Biomimicry, WordTree, TRIZ) create domain-neutral abstractions.
+                    </p>
+                </div>
+                <div class="bg-gray-900 rounded-lg p-6 border border-gray-800">
+                    <div class="text-3xl mb-3 text-center">3-4</div>
+                    <h3 class="font-semibold mb-2 text-center">Expand & Mine</h3>
+                    <p class="text-sm text-gray-400">
+                        Abstractions surface 6-8 candidate domains from mycology to acoustics.
+                        Each domain is mined for structural analogies with element-by-element mapping.
+                    </p>
+                </div>
+                <div class="bg-gray-900 rounded-lg p-6 border border-gray-800">
+                    <div class="text-3xl mb-3 text-center">5-6</div>
+                    <h3 class="font-semibold mb-2 text-center">Synthesize & Evaluate</h3>
+                    <p class="text-sm text-gray-400">
+                        Cross-domain mechanisms become concrete solutions with candidate inferences —
+                        non-obvious predictions from the source domain. Scored on novelty, feasibility, and depth.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- What makes it different -->
+        <section class="mb-16">
+            <h2 class="text-2xl font-semibold mb-6 text-center">What Makes This Different</h2>
+            <div class="space-y-4 max-w-2xl mx-auto">
+                <div class="flex items-start gap-3">
+                    <span class="text-purple-400 font-mono text-sm mt-1">TRIZ</span>
+                    <p class="text-gray-300 text-sm">Contradiction matrix is a deterministic lookup — no hallucinated principles.</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="text-purple-400 font-mono text-sm mt-1">4 LENSES</span>
+                    <p class="text-gray-300 text-sm">Four parallel abstraction views reveal different cross-domain connections.</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="text-purple-400 font-mono text-sm mt-1">GENTNER</span>
+                    <p class="text-gray-300 text-sm">Relational mapping enforcement — rejects surface-level analogies like "both involve networks."</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="text-purple-400 font-mono text-sm mt-1">SAPPhIRE</span>
+                    <p class="text-gray-300 text-sm">Abstraction hierarchy as novelty dial — Effect level = high novelty, Parts level = low.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Examples -->
+        <section class="mb-16">
+            <h2 class="text-2xl font-semibold mb-6 text-center">Example Problems</h2>
+            <div class="space-y-3 max-w-2xl mx-auto">
+                <a href="/solve?q=optimize+KV-cache+in+transformers" class="block bg-gray-900 rounded-lg p-4 border border-gray-800 hover:border-purple-600 transition-colors">
+                    <span class="text-gray-300">"Optimize KV-cache in transformers"</span>
+                    <span class="text-gray-500 text-sm ml-2">— CS problem, solutions from thermodynamics, ecology...</span>
+                </a>
+                <a href="/solve?q=reduce+urban+traffic+congestion" class="block bg-gray-900 rounded-lg p-4 border border-gray-800 hover:border-purple-600 transition-colors">
+                    <span class="text-gray-300">"Reduce urban traffic congestion"</span>
+                    <span class="text-gray-500 text-sm ml-2">— urban planning, solutions from fluid dynamics, immunology...</span>
+                </a>
+                <a href="/solve?q=improve+drug+delivery+across+blood-brain+barrier" class="block bg-gray-900 rounded-lg p-4 border border-gray-800 hover:border-purple-600 transition-colors">
+                    <span class="text-gray-300">"Improve drug delivery across blood-brain barrier"</span>
+                    <span class="text-gray-500 text-sm ml-2">— medicine, solutions from logistics, materials science...</span>
+                </a>
+            </div>
+        </section>
+
+        <!-- CTA -->
+        <div class="text-center">
+            <a href="/solve" class="inline-block bg-purple-600 hover:bg-purple-700 text-white font-semibold px-8 py-3 rounded-lg transition-colors text-lg">
+                Try It Now
+            </a>
+            <p class="text-gray-500 text-sm mt-4">
+                CLI: <code class="bg-gray-800 px-2 py-1 rounded text-gray-300">crossgen solve "your problem here"</code>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

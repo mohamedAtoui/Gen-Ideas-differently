@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solve — CrossGen</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        .stage-running .dot { animation: pulse-dot 1s infinite; }
+        .stage-done { color: #4ade80; }
+        .stage-pending { color: #6b7280; }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen">
+    <div class="max-w-5xl mx-auto px-6 py-12">
+        <!-- Header -->
+        <header class="mb-8">
+            <a href="/" class="text-2xl font-bold gradient-text">CrossGen</a>
+        </header>
+
+        <!-- Input -->
+        <div class="mb-8">
+            <form id="solve-form" class="flex gap-3">
+                <input
+                    type="text"
+                    id="problem-input"
+                    placeholder="Describe your problem..."
+                    class="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-gray-100 focus:outline-none focus:border-purple-500 text-lg"
+                />
+                <select id="model-select" class="bg-gray-900 border border-gray-700 rounded-lg px-3 py-3 text-gray-300 focus:outline-none">
+                    <option value="claude-sonnet-4-6">Sonnet</option>
+                    <option value="claude-opus-4-6">Opus</option>
+                </select>
+                <button type="submit" id="solve-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors">
+                    Solve
+                </button>
+            </form>
+        </div>
+
+        <!-- Pipeline Progress -->
+        <div id="pipeline-progress" class="mb-8 hidden">
+            <div class="bg-gray-900 rounded-lg p-6 border border-gray-800">
+                <h3 class="font-semibold mb-4">Pipeline Progress</h3>
+                <div class="space-y-2" id="stages-list">
+                    <div class="stage stage-pending" data-stage="decompose">
+                        <span class="dot inline-block w-2 h-2 rounded-full bg-current mr-2"></span>
+                        Stage 1: Decompose
+                    </div>
+                    <div class="stage stage-pending" data-stage="abstract">
+                        <span class="dot inline-block w-2 h-2 rounded-full bg-current mr-2"></span>
+                        Stage 2: Abstract (4 lenses)
+                    </div>
+                    <div class="stage stage-pending" data-stage="expand">
+                        <span class="dot inline-block w-2 h-2 rounded-full bg-current mr-2"></span>
+                        Stage 3: Expand domains
+                    </div>
+                    <div class="stage stage-pending" data-stage="mine">
+                        <span class="dot inline-block w-2 h-2 rounded-full bg-current mr-2"></span>
+                        Stage 4: Mine analogies
+                    </div>
+                    <div class="stage stage-pending" data-stage="synthesize">
+                        <span class="dot inline-block w-2 h-2 rounded-full bg-current mr-2"></span>
+                        Stage 5: Synthesize solutions
+                    </div>
+                    <div class="stage stage-pending" data-stage="evaluate">
+                        <span class="dot inline-block w-2 h-2 rounded-full bg-current mr-2"></span>
+                        Stage 6: Evaluate & rank
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div id="results" class="hidden space-y-6"></div>
+
+        <!-- Error -->
+        <div id="error" class="hidden">
+            <div class="bg-red-900/30 border border-red-800 rounded-lg p-4 text-red-300" id="error-msg"></div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
