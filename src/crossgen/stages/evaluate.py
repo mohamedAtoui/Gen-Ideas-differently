@@ -5,8 +5,10 @@ from __future__ import annotations
 import asyncio
 import json
 
+from ..knowledge.domains import DOMAIN_CATALOG
 from ..llm.client import call_claude_json
 from ..llm.prompts import EVALUATE_PROMPT
+from ..mapping_analysis import compute_systematicity
 from ..models import (
     EvaluationResult,
     ProblemAnalysis,
@@ -15,35 +17,46 @@ from ..models import (
     SynthesizedSolution,
 )
 
-# Domain distance heuristic: same category = low distance
+# Build domain-to-category mapping from the canonical DOMAIN_CATALOG
 _DOMAIN_CATEGORIES: dict[str, str] = {
-    "computer science": "tech", "software engineering": "tech", "data science": "tech",
-    "machine learning": "tech", "artificial intelligence": "tech",
-    "electrical engineering": "engineering", "mechanical engineering": "engineering",
-    "civil engineering": "engineering", "chemical engineering": "engineering",
-    "aerospace engineering": "engineering",
-    "biology": "life", "ecology": "life", "neuroscience": "life",
-    "immunology": "life", "mycology": "life", "botany": "life",
-    "microbiology": "life", "marine biology": "life", "entomology": "life",
-    "evolutionary biology": "life",
-    "physics": "physical", "chemistry": "physical", "materials science": "physical",
-    "thermodynamics": "physical", "fluid dynamics": "physical", "optics": "physical",
-    "acoustics": "physical", "quantum mechanics": "physical",
-    "economics": "social", "urban planning": "social", "political science": "social",
-    "organizational behavior": "social", "epidemiology": "social",
+    d.name.lower(): d.category.lower() for d in DOMAIN_CATALOG
+}
+
+# Adjacent category pairs — domains in adjacent categories are closer
+# than truly distant ones, but farther than same-category.
+_ADJACENT_CATEGORIES: set[frozenset[str]] = {
+    frozenset({"biology", "applied"}),
+    frozenset({"biology", "earth"}),
+    frozenset({"physics", "engineering"}),
+    frozenset({"physics", "math"}),
+    frozenset({"math", "engineering"}),
+    frozenset({"social", "applied"}),
+    frozenset({"social", "arts"}),
+    frozenset({"earth", "physics"}),
+    frozenset({"applied", "engineering"}),
+    frozenset({"arts", "math"}),
 }
 
 
 def _domain_distance(home: str, source: str) -> float:
-    """Estimate domain distance (0-1)."""
-    home_lower = home.lower()
-    source_lower = source.lower()
+    """Estimate domain distance (0-1).
+
+    Returns:
+        0.0 — identical domains
+        0.3 — same category
+        0.5 — adjacent categories
+        0.8 — distant categories
+    """
+    home_lower = home.lower().strip()
+    source_lower = source.lower().strip()
     if home_lower == source_lower:
         return 0.0
     home_cat = _DOMAIN_CATEGORIES.get(home_lower, home_lower)
     source_cat = _DOMAIN_CATEGORIES.get(source_lower, source_lower)
     if home_cat == source_cat:
         return 0.3
+    if frozenset({home_cat, source_cat}) in _ADJACENT_CATEGORIES:
+        return 0.5
     return 0.8
 
 
@@ -92,12 +105,12 @@ async def _evaluate_solution(
         dist = _domain_distance(analysis.domain, solution.source_domain)
         novelty = min(1.0, dist + _abstraction_bonus(analogy.abstraction_level))
         feasibility = {"strong": 0.8, "moderate": 0.5, "weak": 0.3}.get(solution.transfer_strength, 0.5)
-        structural_depth = analogy.systematicity_score
+        structural_depth = compute_systematicity(analogy.mappings)
         actionability = 0.5
         reasoning = "Scored via heuristic fallback"
 
-    # Same-domain penalty
-    same_domain = analysis.domain.lower() in solution.source_domain.lower()
+    # Same-domain penalty — exact match only to avoid false positives
+    same_domain = analysis.domain.lower().strip() == solution.source_domain.lower().strip()
     combined = 0.30 * novelty + 0.25 * feasibility + 0.25 * structural_depth + 0.20 * actionability
     if same_domain:
         combined *= 0.5

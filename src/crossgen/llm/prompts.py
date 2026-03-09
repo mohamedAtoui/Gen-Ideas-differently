@@ -15,6 +15,7 @@ Analyze the following problem and extract its structural components.
 PROBLEM: {problem}
 
 First, ELABORATE the problem — expand the terse statement into a rich description. Then decompose.
+Trace the causal chain: input → step 1 causes step 2 → ... → achieves function.
 
 Respond with ONLY valid JSON (no markdown, no explanation) in this exact format:
 {{
@@ -36,7 +37,24 @@ Respond with ONLY valid JSON (no markdown, no explanation) in this exact format:
     }}
   ],
   "key_verbs": ["<action verbs extracted from the problem description>"],
-  "analogical_hooks": ["<2-3 aspects of this problem most amenable to cross-domain metaphor>"]
+  "analogical_hooks": ["<2-3 aspects of this problem most amenable to cross-domain metaphor>"],
+  "behavior_chain": ["<step 1: input arrives>", "<step 2: step 1 causes ...>", "<step N: achieves function>"],
+  "leverage_points": [
+    {{
+      "description": "<what can be changed here>",
+      "meadows_level": "<constants|feedbacks|information_flows|rules|self_organization|goals|paradigms>",
+      "why_high_leverage": "<why changing this would have outsized impact>"
+    }}
+  ]
+}}
+
+EXAMPLE (good decomposition of "reduce hospital waiting times"):
+{{
+  "behavior_chain": ["patient arrives at triage", "triage assessment causes priority assignment", "priority assignment gates queue position", "queue position determines resource allocation", "resource allocation enables treatment start"],
+  "leverage_points": [
+    {{"description": "triage decision rules", "meadows_level": "rules", "why_high_leverage": "one rule change reshuffles every patient's wait"}},
+    {{"description": "real-time bed occupancy feedback", "meadows_level": "information_flows", "why_high_leverage": "upstream visibility prevents bottleneck cascades"}}
+  ]
 }}
 
 IMPORTANT:
@@ -50,6 +68,8 @@ IMPORTANT:
 - Extract 3-5 key action verbs that capture what the system does
 - "analogical_hooks" should identify what aspects of this problem have interesting parallels in other fields
   (e.g., "the trade-off between storing everything and forgetting" is a hook that connects to neuroscience, ecology, library science)
+- "behavior_chain" must trace the CAUSAL sequence: each step should cause the next
+- "leverage_points" should identify 2-4 places where a small change yields disproportionate impact; use Meadows' leverage hierarchy
 """
 
 # --- Stage 2: Abstract (4 lenses) ---
@@ -203,6 +223,7 @@ MINE_PROMPT = """\
 You are an analogical reasoning expert trained in Gentner's Structure-Mapping Theory.
 
 Find a specific mechanism in the SOURCE DOMAIN that maps structurally to the TARGET PROBLEM.
+Map behavior steps, not just static functions — trace HOW the mechanism operates step-by-step.
 
 SOURCE DOMAIN: {source_domain}
 TARGET PROBLEM: {primary_function}
@@ -210,12 +231,41 @@ TARGET SUB-FUNCTIONS: {sub_functions}
 TARGET CONSTRAINTS: {constraints}
 TARGET CONTRADICTIONS: {contradictions}
 TARGET PARAMETERS: {parameters}
+TARGET BEHAVIOR CHAIN: {behavior_chain}
 CONNECTION RATIONALE: {rationale}
 
 ADDITIONAL CONTEXT (use to find deeper mappings):
 UNDERLYING SCIENTIFIC PRINCIPLE: {sapphire_effect}
 NATURE REFRAMINGS: {nature_questions}
 ANALOGICAL HOOKS: {analogical_hooks}
+
+=== GOOD EXAMPLE (deep structural mapping) ===
+Problem: "distribute fluid to variable-demand regions under pressure constraint"
+Source domain: cardiovascular physiology
+{{
+  "mechanism": "mammalian baroreceptor-mediated blood pressure regulation",
+  "mappings": [
+    {{"source_element": "heart ventricle contraction", "target_element": "central pump dispatch", "relation_type": "causal"}},
+    {{"source_element": "arteriole smooth-muscle dilation", "target_element": "local valve opening on demand signal", "relation_type": "functional"}},
+    {{"source_element": "baroreceptor negative-feedback loop", "target_element": "pressure sensor adjusting pump rate", "relation_type": "causal"}},
+    {{"source_element": "capillary bed parallel branching", "target_element": "distribution manifold splitting flow", "relation_type": "structural"}},
+    {{"source_element": "blood viscosity rises at low flow", "target_element": "queue congestion at low throughput", "relation_type": "constraint"}},
+    {{"source_element": "venous return preload determines next stroke volume", "target_element": "downstream backpressure limits next dispatch", "relation_type": "causal"}}
+  ],
+  "systematicity_score": 0.82
+}}
+Why good: 6 mappings, 3 causal chains, maps HOW pressure regulation works step-by-step.
+
+=== BAD EXAMPLE (surface-level) ===
+{{
+  "mechanism": "the internet",
+  "mappings": [
+    {{"source_element": "network nodes", "target_element": "distribution points", "relation_type": "structural"}},
+    {{"source_element": "network links", "target_element": "pipes", "relation_type": "structural"}}
+  ],
+  "systematicity_score": 0.7
+}}
+Why bad: only 2 mappings, both structural, no causal chain — just "both have networks."
 
 Respond with ONLY valid JSON:
 {{
@@ -241,6 +291,47 @@ CRITICAL RULES (Gentner's Structure-Mapping):
 5. "where_it_breaks" is REQUIRED and must be honest — list at least 3 specific weak spots.
 6. Aim for 5-7 relational mappings minimum.
 7. Use the ANALOGICAL HOOKS and SCIENTIFIC PRINCIPLE to find deeper structural parallels.
+8. Map the TARGET BEHAVIOR CHAIN step-by-step to corresponding source-domain steps.
+"""
+
+# --- Stage 4 (MAC retrieval phase): Mine Retrieve ---
+
+MINE_RETRIEVE_PROMPT = """\
+You are an analogical reasoning expert performing the RETRIEVAL phase (MAC stage of MAC/FAC).
+
+Given the source domain and target problem, quickly identify 3-5 candidate mechanisms
+that could map structurally to the target. Provide a one-sentence rationale for each.
+
+SOURCE DOMAIN: {source_domain}
+TARGET PROBLEM: {primary_function}
+TARGET SUB-FUNCTIONS: {sub_functions}
+TARGET CONSTRAINTS: {constraints}
+TARGET CONTRADICTIONS: {contradictions}
+TARGET PARAMETERS: {parameters}
+TARGET BEHAVIOR CHAIN: {behavior_chain}
+CONNECTION RATIONALE: {rationale}
+
+ADDITIONAL CONTEXT:
+UNDERLYING SCIENTIFIC PRINCIPLE: {sapphire_effect}
+NATURE REFRAMINGS: {nature_questions}
+ANALOGICAL HOOKS: {analogical_hooks}
+
+Respond with ONLY valid JSON:
+{{
+  "candidates": [
+    {{
+      "mechanism": "<specific mechanism or phenomenon in {source_domain}>",
+      "rationale": "<one sentence: what structural correspondence makes this promising>",
+      "relevance_score": <0.0-1.0>
+    }}
+  ]
+}}
+
+RULES:
+- Return 3-5 candidates, ranked by relevance_score (highest first).
+- Each mechanism must be REAL and SPECIFIC — name actual phenomena, not vague concepts.
+- The rationale must reference a RELATIONAL correspondence, not surface similarity.
+- Prefer mechanisms whose causal chains parallel the target behavior chain.
 """
 
 # --- Stage 5: Synthesize ---
@@ -257,6 +348,13 @@ STRUCTURAL MAPPINGS:
 {mappings_text}
 WHERE ANALOGY BREAKS: {where_it_breaks}
 {enrichment_context}
+
+=== EXAMPLE (good synthesis from cardiovascular analogy → fluid distribution) ===
+{{
+  "concrete_approach": "Step 1: Install pressure sensors at each branch point (maps to baroreceptors). Step 2: Implement a negative-feedback controller that reduces pump rate when downstream pressure exceeds threshold. Step 3: Add variable-aperture valves at each branch (maps to arteriole dilation). Step 4: Use return-flow measurement to set next dispatch volume (maps to venous preload).",
+  "candidate_inferences": ["The source predicts that pulsatile flow will clear sediment better than steady flow — test with burst dispatches.", "Baroreceptor fatigue in biology suggests the feedback gain should decay over sustained high-pressure periods."],
+  "key_predictions": ["Pulsatile dispatch at 0.5-2 Hz will reduce sediment blockage by >30% vs steady flow.", "Feedback gain decay of 10%/hour will prevent oscillatory instability seen in chronic hypertension analogue."]
+}}
 
 Respond with ONLY valid JSON:
 {{
@@ -313,6 +411,12 @@ STRUCTURAL MAPPINGS COUNT: {mapping_count}
 ABSTRACTION LEVEL: {abstraction_level}
 TRANSFER STRENGTH: {transfer_strength}
 WHERE ANALOGY BREAKS: {where_it_breaks}
+
+=== CALIBRATION EXAMPLES ===
+Novelty 0.75: "Apply slime-mold network optimization to redesign Tokyo rail — distant domain, non-obvious, validated by Tero et al."
+Novelty 0.25: "Use a database index to speed up search — same field, obvious technique."
+Structural depth 0.8: "6 causal mappings forming two feedback loops, predicts non-obvious failure mode."
+Structural depth 0.2: "2 surface similarities: both have nodes and edges."
 
 Respond with ONLY valid JSON:
 {{

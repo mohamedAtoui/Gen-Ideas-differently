@@ -57,25 +57,81 @@ async def call_claude(
         return raw
 
 
+def _strip_code_fences(text: str) -> str:
+    """Remove markdown code fences from a string, if present."""
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.split("\n")
+        lines = [l for l in lines[1:] if not l.strip().startswith("```")]
+        cleaned = "\n".join(lines)
+    return cleaned
+
+
 async def call_claude_json(
     prompt: str,
     *,
     model: str = DEFAULT_MODEL,
     system_prompt: str | None = None,
+    max_retries: int = 2,
+    validation_errors: list[str] | None = None,
 ) -> dict:
     """Call Claude and parse the response as JSON.
 
     The prompt should instruct Claude to respond with valid JSON.
+
+    Parameters
+    ----------
+    prompt:
+        The user prompt to send.
+    model:
+        Model identifier to use.
+    system_prompt:
+        Optional system prompt.
+    max_retries:
+        Number of retries on JSON parse or validation failure (default 2).
+    validation_errors:
+        Optional list of validation error strings from a previous attempt.
+        When provided on the *first* call these are included in the prompt so
+        the LLM can correct its output.
     """
-    text = await call_claude(prompt, model=model, system_prompt=system_prompt)
+    current_prompt = prompt
 
-    # Try to extract JSON from the response (handle markdown code blocks)
-    cleaned = text.strip()
-    if cleaned.startswith("```"):
-        # Remove markdown code fence
-        lines = cleaned.split("\n")
-        # Drop first and last lines (``` markers)
-        lines = [l for l in lines[1:] if not l.strip().startswith("```")]
-        cleaned = "\n".join(lines)
+    # If the caller already knows about validation errors, include them
+    # in the very first attempt so the model can fix them immediately.
+    if validation_errors:
+        error_block = "\n".join(f"- {e}" for e in validation_errors)
+        current_prompt += (
+            "\n\nThe previous response had validation errors — please fix them:\n"
+            f"{error_block}"
+            "\n\nIMPORTANT: Respond with ONLY valid JSON. No markdown, no explanation."
+        )
 
-    return json.loads(cleaned)
+    last_exception: Exception | None = None
+
+    for attempt in range(1 + max_retries):
+        text = await call_claude(
+            current_prompt, model=model, system_prompt=system_prompt,
+        )
+
+        cleaned = _strip_code_fences(text)
+
+        try:
+            return json.loads(cleaned)
+        except json.JSONDecodeError as exc:
+            last_exception = exc
+            if attempt < max_retries:
+                logger.warning(
+                    "JSON parse failed (attempt %d/%d): %s — retrying",
+                    attempt + 1,
+                    1 + max_retries,
+                    exc,
+                )
+                # Append a stern JSON-only instruction for the retry
+                current_prompt = (
+                    prompt
+                    + "\n\nIMPORTANT: Respond with ONLY valid JSON. "
+                    "No markdown, no explanation."
+                )
+
+    # All retries exhausted
+    raise last_exception  # type: ignore[misc]

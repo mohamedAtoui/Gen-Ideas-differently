@@ -80,7 +80,8 @@ class TestUniversalPrinciples:
 class TestTRIZLens:
     """Test the TRIZ lens (Stage 2) — deterministic, no LLM."""
 
-    def test_triz_lens_with_contradictions(self):
+    @pytest.mark.asyncio
+    async def test_triz_lens_with_contradictions(self):
         analysis = ProblemAnalysis(
             original_problem="test",
             domain="computer science",
@@ -94,12 +95,13 @@ class TestTRIZLens:
             ],
             key_verbs=["process"],
         )
-        result = _triz_lens(analysis)
+        result = await _triz_lens(analysis, model=None)
         assert len(result.contradictions_mapped) == 1
         # Should find principles for speed vs reliability
         assert len(result.principles_suggested) > 0
 
-    def test_triz_lens_no_contradictions(self):
+    @pytest.mark.asyncio
+    async def test_triz_lens_no_contradictions(self):
         analysis = ProblemAnalysis(
             original_problem="test",
             domain="test",
@@ -107,7 +109,7 @@ class TestTRIZLens:
             contradictions=[],
             key_verbs=[],
         )
-        result = _triz_lens(analysis)
+        result = await _triz_lens(analysis, model=None)
         assert result.contradictions_mapped == []
         assert result.principles_suggested == []
 

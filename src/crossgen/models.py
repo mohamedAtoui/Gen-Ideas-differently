@@ -27,6 +27,14 @@ class ProblemAnalysis(BaseModel):
     current_state: str = Field(default="", description="How things work now")
     desired_outcome: str = Field(default="", description="What success looks like")
     analogical_hooks: list[str] = Field(default_factory=list, description="Aspects amenable to cross-domain metaphor")
+    behavior_chain: list[str] = Field(
+        default_factory=list,
+        description="Causal chain: input → step 1 causes step 2 → ... → achieves function (SBF-inspired)",
+    )
+    leverage_points: list[dict] = Field(
+        default_factory=list,
+        description="High-impact intervention points (Meadows-inspired): {description, meadows_level, why_high_leverage}",
+    )
 
 
 # --- Stage 2: Abstract (4 lenses) ---
@@ -96,6 +104,13 @@ class RelationalMapping(BaseModel):
     relation_type: str = Field(description="Type of relational correspondence")
 
 
+class CandidateMechanism(BaseModel):
+    """A candidate mechanism identified in the retrieval phase (MAC/FAC-inspired)."""
+    mechanism: str = Field(description="Specific mechanism/phenomenon in the source domain")
+    rationale: str = Field(description="One-sentence explanation of why this mechanism is relevant")
+    relevance_score: float = Field(default=0.5, ge=0, le=1, description="Estimated relevance")
+
+
 class StructuralAnalogy(BaseModel):
     source_domain: str
     mechanism: str = Field(description="Specific mechanism/phenomenon from the source domain")
@@ -103,6 +118,7 @@ class StructuralAnalogy(BaseModel):
     where_it_breaks: str = Field(description="Where the analogy fails — honesty improves quality")
     abstraction_level: str = Field(description="SAPPhIRE level: effect|phenomenon|action|parts")
     systematicity_score: float = Field(ge=0, le=1, description="Higher = more relational correspondences")
+    quality_flags: list[str] = Field(default_factory=list, description="Validation flags from mapping analysis")
 
 
 class MiningResult(BaseModel):
@@ -186,3 +202,7 @@ class PipelineResult(BaseModel):
     enrichment: EnrichmentResult | None = None
     synthesis: SynthesisResult
     evaluation: EvaluationResult
+    diagnostics: dict = Field(
+        default_factory=dict,
+        description="Pipeline diagnostics: failed domains, retry counts, quality gate results",
+    )

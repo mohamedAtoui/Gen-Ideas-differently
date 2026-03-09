@@ -24,8 +24,8 @@ class TestDomainDistance:
         assert _domain_distance("computer science", "computer science") == 0.0
 
     def test_same_category(self):
-        # Both in "tech" category
-        d = _domain_distance("computer science", "software engineering")
+        # Both in "biology" category (from DOMAIN_CATALOG)
+        d = _domain_distance("immunology", "mycology")
         assert d == 0.3
 
     def test_different_category(self):
@@ -91,7 +91,7 @@ class TestEvaluation:
 
     @pytest.mark.asyncio
     async def test_scoring_formula(self):
-        """Test the combined score formula: 0.4*novelty + 0.3*feasibility + 0.3*depth."""
+        """Test the combined score formula: 0.30*novelty + 0.25*feasibility + 0.25*depth + 0.20*actionability."""
         analysis = ProblemAnalysis(
             original_problem="test",
             domain="computer science",
@@ -125,12 +125,13 @@ class TestEvaluation:
                 "novelty": 0.8,
                 "feasibility": 0.6,
                 "structural_depth": 0.7,
+                "actionability": 0.5,
                 "reasoning": "good cross-domain transfer",
             },
         ):
             result = await evaluate([solution], [analogy], analysis)
             scored = result.scored_solutions[0]
-            expected = round(0.4 * 0.8 + 0.3 * 0.6 + 0.3 * 0.7, 2)
+            expected = round(0.30 * 0.8 + 0.25 * 0.6 + 0.25 * 0.7 + 0.20 * 0.5, 2)
             assert scored.combined_score == expected
             assert scored.same_domain_penalty is False
 
