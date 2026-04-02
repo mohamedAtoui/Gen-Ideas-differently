@@ -16,16 +16,25 @@ async def expand(
     abstractions: AbstractionResult,
     *,
     model: str | None = None,
+    preferred_categories: list[str] | None = None,
 ) -> ExpansionResult:
-    """Identify 6-8 candidate domains using all abstraction lens outputs."""
+    """Identify 6-8 candidate domains using all abstraction lens outputs.
+
+    Parameters
+    ----------
+    preferred_categories:
+        If provided, bias domain expansion toward these categories
+        (e.g. ``["physics", "engineering", "math"]``).  Overrides the
+        default requirement for biology/arts/earth science diversity.
+    """
 
     # Collect cross-domain terms from WordTree
     cross_domain_terms = []
     for exp in abstractions.wordtree.expansions:
         cross_domain_terms.extend(exp.cross_domain_terms)
 
-    # Collect nature questions from Biologize
-    nature_questions = abstractions.biologize.nature_questions
+    # Collect nature questions from Biologize (if available)
+    nature_questions = abstractions.biologize.nature_questions if abstractions.biologize else []
 
     # Collect TRIZ principles
     triz_principles = [
@@ -43,6 +52,22 @@ async def expand(
     # Get curated domain catalog (excluding home domain)
     domain_catalog = get_all_domain_names(exclude=analysis.domain)
 
+    # Build domain diversity rules based on preferences
+    if preferred_categories:
+        cats = ", ".join(preferred_categories)
+        diversity_rules = (
+            f"- STRONGLY PREFER domains from these categories: {cats}. "
+            f"At least 5 of the 8 candidates should come from these categories.\n"
+            f"- You MAY include 1-2 domains from other categories if they offer genuinely strong structural analogies.\n"
+            f"- Do NOT force biology/ecology domains unless they are clearly the best fit."
+        )
+    else:
+        diversity_rules = (
+            "- Include at least 2 domains from biology/ecology (mycology, immunology, marine biology, entomology...)\n"
+            "- Include at least 1 domain from arts/humanities (music theory, choreography, linguistics...)\n"
+            "- Include at least 1 domain from earth/physical sciences"
+        )
+
     prompt = EXPAND_PROMPT.format(
         home_domain=analysis.domain,
         primary_function=analysis.primary_function,
@@ -54,6 +79,7 @@ async def expand(
         triz_principles=json.dumps(triz_principles) if triz_principles else "None found",
         universal_principles=json.dumps(list(matched_principles)) if matched_principles else "None matched",
         domain_catalog=", ".join(domain_catalog),
+        diversity_rules=diversity_rules,
     )
 
     kwargs = {}

@@ -104,8 +104,17 @@ uv sync
 # Solve a problem
 crossgen solve "How can we reduce hospital readmission rates?"
 
+# Save results to markdown instead of console
+crossgen solve "How can we reduce hospital readmission rates?" -o results.md
+
 # JSON output
 crossgen solve "How can we reduce hospital readmission rates?" --json
+
+# Skip biology-focused lens, prefer physics/engineering/math domains
+crossgen solve "How can I make my ODE solver stable?" --skip-biologize --prefer-stem
+
+# Custom domain preferences
+crossgen solve "my problem" --prefer-categories "physics,aerospace,control theory"
 
 # Browse principles
 crossgen principles list
@@ -114,6 +123,17 @@ crossgen principles search "feedback"
 # Web UI with live streaming
 uvicorn web.app:app --host 0.0.0.0 --port 8000
 ```
+
+### CLI Options
+
+| Flag | Description |
+|------|-------------|
+| `--model`, `-m` | LLM model to use (default: `claude-sonnet-4-6`) |
+| `--json` | Output raw JSON |
+| `--output`, `-o` | Save results to a markdown file |
+| `--skip-biologize` | Skip the Biologize lens (saves 1 LLM call, avoids biology bias in domain expansion) |
+| `--prefer-stem` | Bias domain expansion toward physics, engineering, math, aerospace, materials science |
+| `--prefer-categories` | Comma-separated list of domain categories to prefer (overrides default diversity rules) |
 
 ## Project Structure
 

@@ -130,6 +130,8 @@ async def run_pipeline(
     *,
     model: str | None = None,
     on_stage: Any | None = None,
+    skip_biologize: bool = False,
+    preferred_domain_categories: list[str] | None = None,
 ) -> PipelineResult:
     """Run the full 6-stage CrossGen pipeline.
 
@@ -137,6 +139,8 @@ async def run_pipeline(
         problem: The problem statement to solve.
         model: LLM model override.
         on_stage: Optional async callback(stage_name, stage_number, data) for progress.
+        skip_biologize: Skip the Biologize lens in Stage 2.
+        preferred_domain_categories: Bias domain expansion toward these categories.
     """
     diagnostics: dict[str, Any] = {
         "mine_failed_domains": [],
@@ -157,14 +161,17 @@ async def run_pipeline(
     analysis = await decompose(problem, model=model)
     await notify("decompose", 1, {"status": "done", "data": analysis.model_dump()})
 
-    # Stage 2: Abstract (4 parallel lenses)
+    # Stage 2: Abstract (parallel lenses)
     await notify("abstract", 2, {"status": "running"})
-    abstractions = await abstract(analysis, model=model)
+    abstractions = await abstract(analysis, model=model, skip_biologize=skip_biologize)
     await notify("abstract", 2, {"status": "done", "data": abstractions.model_dump()})
 
     # Stage 3: Expand
     await notify("expand", 3, {"status": "running"})
-    expansion = await expand(analysis, abstractions, model=model)
+    expansion = await expand(
+        analysis, abstractions, model=model,
+        preferred_categories=preferred_domain_categories,
+    )
     await notify("expand", 3, {"status": "done", "data": expansion.model_dump()})
 
     # Stage 4: Mine (parallel per domain)
@@ -212,6 +219,8 @@ async def run_pipeline_streaming(
     problem: str,
     *,
     model: str | None = None,
+    skip_biologize: bool = False,
+    preferred_domain_categories: list[str] | None = None,
 ) -> AsyncGenerator[dict, None]:
     """Run the pipeline and yield stage updates as dicts for SSE streaming."""
     results: dict[str, Any] = {}
@@ -230,13 +239,16 @@ async def run_pipeline_streaming(
 
     # Stage 2
     yield {"stage": "abstract", "number": 2, "status": "running"}
-    abstractions = await abstract(analysis, model=model)
+    abstractions = await abstract(analysis, model=model, skip_biologize=skip_biologize)
     results["abstractions"] = abstractions
     yield {"stage": "abstract", "number": 2, "status": "done", "data": abstractions.model_dump()}
 
     # Stage 3
     yield {"stage": "expand", "number": 3, "status": "running"}
-    expansion = await expand(analysis, abstractions, model=model)
+    expansion = await expand(
+        analysis, abstractions, model=model,
+        preferred_categories=preferred_domain_categories,
+    )
     results["expansion"] = expansion
     yield {"stage": "expand", "number": 3, "status": "done", "data": expansion.model_dump()}
 

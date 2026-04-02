@@ -8,6 +8,8 @@ from unittest.mock import AsyncMock, patch
 from crossgen.models import (
     ProblemAnalysis,
     Contradiction,
+    StructuralAnalogy,
+    RelationalMapping,
 )
 from crossgen.knowledge.triz import (
     lookup_principles,
@@ -189,7 +191,82 @@ class TestAbstract:
             result = await abstract(analysis)
 
             assert result.sapphire.effect == "thermodynamic equilibrium"
+            assert result.biologize is not None
             assert len(result.biologize.nature_questions) > 0
             assert len(result.wordtree.expansions) > 0
             # TRIZ is deterministic — should have found principles
             assert len(result.triz.contradictions_mapped) == 1
+
+    @pytest.mark.asyncio
+    async def test_abstract_skip_biologize(self):
+        """Skipping Biologize should return None for biologize and only make 2 LLM calls."""
+        analysis = ProblemAnalysis(
+            original_problem="test",
+            domain="CS",
+            primary_function="cache data",
+            sub_functions=["evict"],
+            constraints=["memory limited"],
+            contradictions=[
+                Contradiction(
+                    improving="speed",
+                    worsening="reliability",
+                    description="Faster caching is less reliable",
+                ),
+            ],
+            key_verbs=["cache", "evict", "store"],
+        )
+
+        sapphire_resp = {
+            "effect": "thermodynamic equilibrium",
+            "phenomenon": "selective retention",
+            "action": "eviction",
+            "parts": ["cache", "memory"],
+            "abstraction_level": "effect",
+        }
+        wordtree_resp = {
+            "expansions": [
+                {
+                    "verb": "cache",
+                    "hypernyms": ["store"],
+                    "troponyms": ["buffer"],
+                    "cross_domain_terms": ["reservoir"],
+                }
+            ]
+        }
+
+        with patch(
+            "crossgen.stages.abstract.call_claude_json",
+            new_callable=AsyncMock,
+            # Only 2 LLM calls: SAPPhIRE + WordTree (TRIZ is deterministic)
+            side_effect=[sapphire_resp, wordtree_resp],
+        ):
+            from crossgen.stages.abstract import abstract
+            result = await abstract(analysis, skip_biologize=True)
+
+            assert result.sapphire.effect == "thermodynamic equilibrium"
+            assert result.biologize is None
+            assert len(result.wordtree.expansions) > 0
+
+
+class TestWhereItBreaksCoercion:
+    def test_string_passthrough(self):
+        analogy = StructuralAnalogy(
+            source_domain="test",
+            mechanism="test mechanism",
+            where_it_breaks="It breaks here.",
+            abstraction_level="effect",
+            systematicity_score=0.5,
+        )
+        assert analogy.where_it_breaks == "It breaks here."
+
+    def test_list_coerced_to_string(self):
+        analogy = StructuralAnalogy(
+            source_domain="test",
+            mechanism="test mechanism",
+            where_it_breaks=["First break.", "Second break."],
+            abstraction_level="effect",
+            systematicity_score=0.5,
+        )
+        assert isinstance(analogy.where_it_breaks, str)
+        assert "First break." in analogy.where_it_breaks
+        assert "Second break." in analogy.where_it_breaks

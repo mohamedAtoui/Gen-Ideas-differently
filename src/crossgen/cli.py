@@ -32,14 +32,128 @@ STAGE_LABELS = {
 }
 
 
+def _format_result_markdown(result, problem: str) -> str:
+    """Format pipeline result as a readable markdown document."""
+    lines = []
+    lines.append(f"# CrossGen Results\n")
+    lines.append(f"**Problem:** {problem}\n")
+
+    # Stage 1
+    lines.append(f"## Stage 1: Decomposition\n")
+    lines.append(f"- **Domain:** {result.problem.domain}")
+    lines.append(f"- **Primary Function:** {result.problem.primary_function}")
+    if result.problem.elaborated_problem:
+        lines.append(f"- **Elaborated:** {result.problem.elaborated_problem}")
+    if result.problem.contradictions:
+        lines.append(f"- **Contradictions:** {len(result.problem.contradictions)}")
+        for c in result.problem.contradictions:
+            lines.append(f"  - {c.description} (improving: {c.improving}, worsening: {c.worsening})")
+    lines.append("")
+
+    # Stage 2
+    lines.append(f"## Stage 2: Abstractions\n")
+    lines.append(f"### SAPPhIRE\n")
+    lines.append(f"**Effect:** {result.abstractions.sapphire.effect}\n")
+    lines.append(f"**Phenomenon:** {result.abstractions.sapphire.phenomenon}\n")
+    if result.abstractions.biologize:
+        lines.append(f"### Biologize\n")
+        lines.append(f"**Nature Questions:**\n")
+        for q in result.abstractions.biologize.nature_questions:
+            lines.append(f"- {q}")
+        lines.append("")
+    else:
+        lines.append("### Biologize\n*Skipped*\n")
+    lines.append(f"### WordTree\n")
+    for exp in result.abstractions.wordtree.expansions:
+        terms = ", ".join(exp.cross_domain_terms) if exp.cross_domain_terms else ""
+        lines.append(f"- **{exp.original_verb}** -> {terms}")
+    lines.append("")
+    lines.append(f"### TRIZ\n")
+    for p in result.abstractions.triz.principles_suggested:
+        lines.append(f"- #{p.get('number', '?')}: {p.get('name', '?')} -- {p.get('description', '?')}")
+    lines.append("")
+
+    # Stage 3
+    lines.append(f"## Stage 3: Domain Expansion\n")
+    lines.append(f"| Domain | Distance | Source Lens | Rationale |")
+    lines.append(f"|--------|----------|-------------|-----------|")
+    for d in result.expansion.candidate_domains:
+        lines.append(f"| {d.domain} | {d.distance_from_home} | {d.source_lens} | {d.rationale[:80]}... |")
+    lines.append("")
+
+    # Stage 4-6: Scored solutions
+    if result.evaluation.scored_solutions:
+        lines.append(f"## Solutions Ranked by Score\n")
+        lines.append(f"| # | Source Domain | Mechanism | Nov | Feas | Depth | Score |")
+        lines.append(f"|---|-------------|-----------|-----|------|-------|-------|")
+        for i, scored in enumerate(result.evaluation.scored_solutions, 1):
+            lines.append(
+                f"| {i} | {scored.solution.source_domain} "
+                f"| {scored.solution.source_mechanism[:60]} "
+                f"| {scored.novelty:.2f} | {scored.feasibility:.2f} "
+                f"| {scored.structural_depth:.2f} | {scored.combined_score:.2f} |"
+            )
+        lines.append("")
+
+        # Detailed write-up for each solution
+        for i, scored in enumerate(result.evaluation.scored_solutions, 1):
+            lines.append(f"---\n")
+            lines.append(f"### #{i} -- {scored.solution.source_domain} (score: {scored.combined_score:.2f})\n")
+            lines.append(f"**Mechanism:** {scored.solution.source_mechanism}\n")
+            lines.append(f"**Transfer Strength:** {scored.solution.transfer_strength}\n")
+            lines.append(f"#### Approach\n")
+            lines.append(f"{scored.solution.concrete_approach}\n")
+            if scored.solution.candidate_inferences:
+                lines.append(f"#### Key Predictions\n")
+                for ci in scored.solution.candidate_inferences:
+                    lines.append(f"- {ci}")
+                lines.append("")
+            if scored.solution.key_predictions:
+                lines.append(f"#### Testable Predictions\n")
+                for kp in scored.solution.key_predictions:
+                    lines.append(f"- {kp}")
+                lines.append("")
+            lines.append(f"#### Structural Mappings\n")
+            if scored.analogy.mappings:
+                lines.append(f"| Source Element | Target Element | Relation |")
+                lines.append(f"|---------------|----------------|----------|")
+                for m in scored.analogy.mappings:
+                    lines.append(f"| {m.source_element} | {m.target_element} | {m.relation_type} |")
+                lines.append("")
+            lines.append(f"#### Where It Breaks\n")
+            lines.append(f"{scored.analogy.where_it_breaks}\n")
+            if scored.reasoning:
+                lines.append(f"#### Evaluation Reasoning\n")
+                lines.append(f"{scored.reasoning}\n")
+
+    # Recommendation
+    if result.evaluation.top_recommendation:
+        lines.append(f"---\n")
+        lines.append(f"## Recommendation\n")
+        lines.append(f"{result.evaluation.top_recommendation}\n")
+
+    return "\n".join(lines)
+
+
 @app.command()
 def solve(
     problem: str = typer.Argument(help="Problem statement to solve"),
     model: str = typer.Option("claude-sonnet-4-6", "--model", "-m", help="LLM model to use"),
     output_json: bool = typer.Option(False, "--json", help="Output raw JSON"),
+    output_file: str = typer.Option("", "--output", "-o", help="Save results to markdown file (e.g. -o results.md)"),
+    skip_biologize: bool = typer.Option(False, "--skip-biologize", help="Skip the Biologize lens (saves 1 LLM call, avoids biology bias)"),
+    prefer_stem: bool = typer.Option(False, "--prefer-stem", help="Bias domain expansion toward physics/engineering/math"),
+    prefer_categories: str = typer.Option("", "--prefer-categories", help="Comma-separated domain categories to prefer (e.g. 'physics,engineering,math')"),
 ) -> None:
     """Run the full CrossGen pipeline on a problem."""
     from .pipeline import run_pipeline
+
+    # Resolve preferred categories
+    preferred_cats = None
+    if prefer_stem:
+        preferred_cats = ["physics", "engineering", "mathematics", "aerospace", "materials science"]
+    elif prefer_categories:
+        preferred_cats = [c.strip() for c in prefer_categories.split(",") if c.strip()]
 
     async def _run() -> None:
         stage_status: dict[str, str] = {}
@@ -61,10 +175,21 @@ def solve(
                     progress.update(tasks[stage], description=f"[green]{STAGE_LABELS[stage]} ✓")
                     progress.stop_task(tasks[stage])
 
-            result = await run_pipeline(problem, model=model, on_stage=on_stage)
+            result = await run_pipeline(
+                problem, model=model, on_stage=on_stage,
+                skip_biologize=skip_biologize,
+                preferred_domain_categories=preferred_cats,
+            )
 
         if output_json:
             console.print_json(json.dumps(result.model_dump(), default=str))
+            return
+
+        if output_file:
+            md = _format_result_markdown(result, problem)
+            from pathlib import Path
+            Path(output_file).write_text(md)
+            console.print(f"[green]Results saved to {output_file}[/green]")
             return
 
         # Display results
@@ -81,9 +206,14 @@ def solve(
         ))
 
         # Abstractions summary
+        bio_line = (
+            f"[bold]Nature Questions:[/bold] {len(result.abstractions.biologize.nature_questions)}\n"
+            if result.abstractions.biologize
+            else "[dim]Biologize: skipped[/dim]\n"
+        )
         console.print(Panel(
             f"[bold]SAPPhIRE Effect:[/bold] {result.abstractions.sapphire.effect}\n"
-            f"[bold]Nature Questions:[/bold] {len(result.abstractions.biologize.nature_questions)}\n"
+            f"{bio_line}"
             f"[bold]Word Expansions:[/bold] {len(result.abstractions.wordtree.expansions)}\n"
             f"[bold]TRIZ Principles:[/bold] {len(result.abstractions.triz.principles_suggested)}",
             title="Stage 2: Abstractions",
