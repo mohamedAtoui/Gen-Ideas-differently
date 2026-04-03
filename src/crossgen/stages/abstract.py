@@ -137,17 +137,33 @@ async def _triz_lens(analysis: ProblemAnalysis, model: str | None) -> TRIZLensRe
     )
 
 
-async def abstract(analysis: ProblemAnalysis, *, model: str | None = None) -> AbstractionResult:
-    """Run all 4 abstraction lenses in parallel.
+async def abstract(
+    analysis: ProblemAnalysis,
+    *,
+    model: str | None = None,
+    skip_biologize: bool = False,
+) -> AbstractionResult:
+    """Run abstraction lenses in parallel.
 
-    All 4 lenses run as concurrent async calls (TRIZ now includes LLM fallback).
+    Parameters
+    ----------
+    skip_biologize:
+        If True, skip the Biologize (biomimicry) lens — saves one LLM
+        call and avoids biasing domain expansion toward biology.
     """
-    sapphire, biologize, wordtree, triz_result = await asyncio.gather(
+    tasks = [
         _sapphire_lens(analysis, model),
-        _biologize_lens(analysis, model),
         _wordtree_lens(analysis, model),
         _triz_lens(analysis, model),
-    )
+    ]
+    if not skip_biologize:
+        tasks.insert(1, _biologize_lens(analysis, model))
+        results = await asyncio.gather(*tasks)
+        sapphire, biologize, wordtree, triz_result = results
+    else:
+        results = await asyncio.gather(*tasks)
+        sapphire, wordtree, triz_result = results
+        biologize = None
 
     return AbstractionResult(
         sapphire=sapphire,

@@ -209,9 +209,7 @@ Respond with ONLY valid JSON:
 CRITICAL RULES:
 - NEVER include "{home_domain}" or closely adjacent fields as a candidate
 - Prefer HIGH distance domains — that's where novel ideas come from
-- Include at least 2 domains from biology/ecology (mycology, immunology, marine biology, entomology...)
-- Include at least 1 domain from arts/humanities (music theory, choreography, linguistics...)
-- Include at least 1 domain from earth/physical sciences
+{diversity_rules}
 - Each domain should connect to a DIFFERENT aspect of the problem
 - Cite which lens (sapphire/biologize/wordtree/triz/universal) surfaced each domain
 - In the rationale, hint at the SPECIFIC mechanism you think will be useful (not just "this domain is relevant")

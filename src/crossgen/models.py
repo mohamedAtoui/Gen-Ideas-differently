@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # --- Stage 1: Decompose ---
@@ -77,7 +77,7 @@ class TRIZLensResult(BaseModel):
 
 class AbstractionResult(BaseModel):
     sapphire: SAPPhIREAbstraction
-    biologize: BiologizeLens
+    biologize: BiologizeLens | None = None
     wordtree: WordTreeLens
     triz: TRIZLensResult
 
@@ -119,6 +119,13 @@ class StructuralAnalogy(BaseModel):
     abstraction_level: str = Field(description="SAPPhIRE level: effect|phenomenon|action|parts")
     systematicity_score: float = Field(ge=0, le=1, description="Higher = more relational correspondences")
     quality_flags: list[str] = Field(default_factory=list, description="Validation flags from mapping analysis")
+
+    @field_validator("where_it_breaks", mode="before")
+    @classmethod
+    def _coerce_where_it_breaks(cls, v):
+        if isinstance(v, list):
+            return " ".join(str(item) for item in v)
+        return v
 
 
 class MiningResult(BaseModel):
