@@ -24,7 +24,7 @@ console = Console()
 
 STAGE_LABELS = {
     "decompose": "Stage 1: Decompose",
-    "abstract": "Stage 2: Abstract (4 lenses)",
+    "abstract": "Stage 2: Abstract",
     "expand": "Stage 3: Expand domains",
     "mine": "Stage 4: Mine analogies",
     "synthesize": "Stage 5: Synthesize solutions",
@@ -66,7 +66,7 @@ def _format_result_markdown(result, problem: str) -> str:
     lines.append(f"### WordTree\n")
     for exp in result.abstractions.wordtree.expansions:
         terms = ", ".join(exp.cross_domain_terms) if exp.cross_domain_terms else ""
-        lines.append(f"- **{exp.original_verb}** -> {terms}")
+        lines.append(f"- **{exp.verb}** -> {terms}")
     lines.append("")
     lines.append(f"### TRIZ\n")
     for p in result.abstractions.triz.principles_suggested:
